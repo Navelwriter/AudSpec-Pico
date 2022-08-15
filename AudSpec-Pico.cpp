@@ -9,7 +9,7 @@
 
 
 // This array converts a number 0-9 to a bit pattern to send to the GPIOs
-int bits[11] = {
+int bits[17] = {
   0x0,  // 0
   0x1,  // 1
   0x3,  // 2
@@ -21,6 +21,13 @@ int bits[11] = {
   0xFF,  // 8
   0x1FF,  // 9
   0x3FF,  // 10
+  0x7FF,  // 11
+  0xFFF,  // 12
+  0x1FFF,  // 13
+  0x3FFF,  // 14
+  0x7FFF,  // 15
+  0xFFFF,  // 16
+
 };
 
 static char event_str[128];
@@ -51,39 +58,40 @@ void setup() {
 
 void loop() {
   uint16_t result = adc_read();
-  if(result >= 0 && result < 1024) { // if result is between 0 and 1024 (10 bit ADC) then map it to 0 and 100 and display it on the screen 
-    int val = map(result, 0, 1024, 0, 10);
+  if(result >= 0 && result < 1024) { // if result is between 0 and 1024 (10 bit ADC) then map it to 0 and 17 
+    val = map(result, 0, 1024, 0, 17);
     if(val != mem) {
       mem = val;
-      sprintf(event_str, "ADC: %d", val);
-      u8g2.firstPage();
-      do {
-        u8g2.setFont(u8g2_font_6x10_mf); 
-        u8g2.drawStr(0, 10, event_str); // draw the string
-      } while(u8g2.nextPage());
     }
   }
-  // //scroll text to the right and left with a delay of 1 second between each step (1000 ms) and a speed of 1 pixel per second (1 pixel per 1000 ms) 
-  // u8g2.setFont(u8g2_font_6x10_mf);
-  // u8g2.setFontRefHeightExtendedText();
-  // u8g2.setDrawColor(1);
-  // u8g2.setFontPosTop();
-  // //find character width of "Hello World"
-  // uint8_t char_width = u8g2.getStrWidth("Hello World");
-  // //scroll text to the right until the right border is reached by the end of the string
-  // for (int i = 0; i < 128 - char_width; i++) {
-  //   u8g2.drawStr(i, 10, "Hello World");
-  //   u8g2.sendBuffer();
-  //   delay(10);
-  //   u8g2.clearBuffer();
+  sprintf(event_str, "ADC: %d, %d", result, val);
 
-  // }
-  // //scroll text to the left until the left border is reached by the end of the string
-  // for(int i = 127 - char_width; i >= 0; i--) {
-  //   u8g2.drawStr(i, 10, "Hello World");
-  //   u8g2.sendBuffer();
-  //   delay(10);
-  // }
+  //scroll text to the right and left with a delay of 1 second between each step (1000 ms) and a speed of 1 pixel per second (1 pixel per 1000 ms) 
+  u8g2.setFont(u8g2_font_6x10_mf);
+  u8g2.setFontRefHeightExtendedText();
+  u8g2.setDrawColor(1);
+  u8g2.setFontPosTop();
+  //find character width of "Hello World"
+  uint8_t char_width = u8g2.getStrWidth("Hello World");
+  //scroll text to the right until the right border is reached by the end of the string
+  //create character buffer for the text
+  char text[char_width + 2];
+  //copy the text to the character buffer
+
+  sprintf(text, "Hello  World %d", val);
+  for (int i = 0; i < 128 - char_width; i++) {
+    u8g2.drawStr(i, 10, text);
+    u8g2.sendBuffer();
+    delay(10);
+    u8g2.clearBuffer();
+
+  }
+  //scroll text to the left until the left border is reached by the end of the string
+  for(int i = 127 - char_width; i >= 0; i--) {
+    u8g2.drawStr(i, 10, text);
+    u8g2.sendBuffer();
+    delay(10);
+  }
 
   
  
