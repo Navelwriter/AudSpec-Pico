@@ -4,51 +4,34 @@
 #include <adc.h>
 #include <Bounce2.h>
 #include "arduinoFFT.h"
+
 #define Button1 17
-#define ADC2_GPIO 34
+#define ADC2_GPIO 28
 #define R_IN 26 //Right audio input
 #define L_IN 27 //Left audio input
+#define Wave_X1 62 //Origin Left X
+#define Wave_X2 65 //Origin Right X    
+#define Wave_Y1 16 //Bottom edge of waveform   
+#define Wave_Y2 55 //Lower edge of waveform (-50db)  
+
 int ledState = LOW;
 int val = 0;
 int mem = 0;
+static char event_str[128]; // General purpose string for printing to the screen
 Bounce b = Bounce(); // create a Bounce object
 
-// This array converts a number 0-9 to a bit pattern to send to the GPIOs
-int bits[21] = {
-    0x0,     // 0
-    0x1,     // 1
-    0x3,     // 2
-    0x7,     // 3
-    0xF,     // 4
-    0x1F,    // 5
-    0x3F,    // 6
-    0x7F,    // 7
-    0xFF,    // 8
-    0x1FF,   // 9
-    0x3FF,   // 10
-    0x7FF,   // 11
-    0xFFF,   // 12
-    0x1FFF,  // 13
-    0x3FFF,  // 14
-    0x7FFF,  // 15
-    0xFFFF,  // 16
-    0x1FFFF, // 17
-    0x3FFFF, // 18
-    0x7FFFF, // 19
-    0xFFFFF, // 20
-
+//enum 4 states for the average of the waveform named "state"
+enum waveState{
+  WAVE_ON,
+  WAVE_OFF,
 };
+enum waveState state = WAVE_OFF;
 
-static char event_str[128];
-//prototype function for button_isr
 void button_ISR();
-/*
-  U8g2lib Example Overview:
-    Frame Buffer Examples: clearBuffer/sendBuffer. Fast, but may not work with all Arduino boards because of RAM consumption
-    Page Buffer Examples: firstPage/nextPage. Less RAM usage, should work with all Arduino boards.
-    U8x8 Text Only Example: No RAM usage, direct communication with display controller. No graphics, 8x8 Text only.
+void showWave();
+void showSpect();
+int barHeight(double value);
 
-*/
 arduinoFFT FFT = arduinoFFT(); // create an instance of the FFT class
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE);
 
@@ -60,17 +43,18 @@ double vImag_L[samples];
 int16_t wave_R[samples]; // waveform data for the FFT input      
 int16_t wave_L[samples];
 
-int map(int s, int a1, int a2, int b1, int b2) {
+int map(int s, int a1, int a2, int b1, int b2) { // map a value from one range to another
   return b1 + (s - a1) * (b2 - b1) / (a2 - a1);
 }
 
 void setup() {
   u8g2.begin();
   adc_init();
-  adc_gpio_init(ADC2_GPIO);
-  adc_select_input(2); // select ADC input 2
+  //initialize the second adc channel
+  // adc_gpio_init(ADC2_GPIO);
+  // adc_select_input(2); // select ADC input 2
   analogReadResolution(12); // set the ADC resolution to 12 bit
-  
+
   pinMode(LED_BUILTIN, OUTPUT); // set Built_in_LED as output
   digitalWrite(LED_BUILTIN, !ledState); // set Built_in_LED to LOW
 
@@ -85,7 +69,7 @@ void setup() {
   u8g2.clearBuffer();
   u8g2.drawStr( 0, 0, "Start AudSpec");
   u8g2.sendBuffer();
-  delay(1000);
+  delay(500);
 }
 
 // create a u8g2 rectangle class with functions to draw and fill it
@@ -118,9 +102,9 @@ private:
 
 void loop() {
   u8g2.clearBuffer();
-  uint16_t result = adc_read();
-  // map it between 0 and 15
-  val = map(result, 0, 0xfff, 0, 20);
+
+  uint16_t result = analogRead(ADC2_GPIO); //read the potentiometer adc value in the ADC2
+  val = map(result, 0, 0xfff, 0, 20); // map it between 0 and 15
   if (val != mem) {
     mem = val;
   }
@@ -147,16 +131,13 @@ void loop() {
   FFT.ComplexToMagnitude(vReal_R, vImag_R, samples); // compute the magnitude of the FFT output
   FFT.ComplexToMagnitude(vReal_L, vImag_L, samples);
 
-  FFT.
-  uint8_t char_width = u8g2.getStrWidth("Hello World");
-  sprintf(event_str, "ADC: %d, %d", result, val);
-  u8g2.setFont(u8g2_font_6x10_mf);
-  u8g2.drawStr(u8g2.getDisplayWidth() / 2 - char_width / 2, u8g2.getDisplayHeight() / 2, event_str); // draw the string at the center of the screen
+  // u8g2_rect_t rect(u8g2.getDisplayWidth() - u8g2.getDisplayWidth() / 10, 0, u8g2.getDisplayWidth() / 12, u8g2.getDisplayHeight() / 5); // create a new narrow rectangle on the top right
+  // rect.move(0, val * 2.5); // move the rectangle using the potentiometer
+  // rect.fill(&u8g2);
+  // rect.draw(&u8g2);
 
-  u8g2_rect_t rect(u8g2.getDisplayWidth() - u8g2.getDisplayWidth() / 10, 0, u8g2.getDisplayWidth() / 12, u8g2.getDisplayHeight() / 5); // create a new narrow rectangle on the top right
-  rect.move(0, val * 2.5); // move the rectangle using the potentiometer
-  rect.fill(&u8g2);
-  rect.draw(&u8g2);
+  showWave();
+  showSpect();
   u8g2.sendBuffer();
 
   b.update(); // update the Button object
@@ -167,3 +148,73 @@ void loop() {
   }
 }
 
+void showWave() { // draw the waveform data on the screen
+  for (int i = 0; i < 52; i++) {
+    u8g2.drawLine(Wave_X2 + i, Wave_Y1 - (wave_R[i * 2]) / 256, Wave_X2 + i + 1, 16 - (wave_R[i * 2 + 1] / 256)); // draw the waveform data for the right channel
+    u8g2.drawLine(Wave_X1 - i, Wave_Y1 - (wave_L[i * 2]) / 256, Wave_X1 - i - 1, 16 - (wave_L[i * 2 + 1] / 256)); // draw the waveform data for the left channel
+  }
+}
+
+void showSpect() { // draw the spectrum data on the screen        
+  int mag;
+  static int peak_R[64];     
+  static int peak_L[64];
+  int average = 0;
+  
+ 
+  for (int xi = 1; xi < 60; xi++) {  // loop through the spectrum data    
+    mag = barHeight(vReal_R[xi]); // get the magnitude of the current frequency bin
+    u8g2.drawVLine(xi + Wave_X2, Wave_Y2 - mag, mag); // draw the magnitude of the current frequency bin         
+    u8g2.drawVLine(xi + Wave_X2, Wave_Y2 - peak_R[xi], 1);  // draw the peak of the current frequency bin
+    if (peak_R[xi] < mag) {  // if the current frequency bin is greater than the peak of the current frequency bin                         
+      peak_R[xi] = mag; // set the peak of the current frequency bin to the magnitude of the current frequency bin                              
+    }
+    if (peak_R[xi] > 0) { // if the peak of the current frequency bin is greater than 0 
+      peak_R[xi] --; // decrement the peak of the current frequency bin                               
+    }
+    average += mag; // add the magnitude of the current frequency bin to the average
+ 
+    mag = barHeight(vReal_L[xi]);       
+    u8g2.drawVLine(Wave_X1 - xi, Wave_Y2 - mag, mag);          
+    u8g2.drawVLine(Wave_X1 - xi, Wave_Y2 - peak_L[xi], 1); 
+    if (peak_L[xi] < mag) {                          
+      peak_L[xi] = mag;                              
+    }
+    if (peak_L[xi] > 0) {
+      peak_L[xi] --;                               
+    }
+  }
+  average = average / 60; // get the average of the spectrum data (just the right channel)
+  
+  sprintf(event_str, "Average: %d, %d", average, val); //set character buffer to average as well as potentiometer value
+  u8g2.setFont(u8g2_font_6x10_mf); //print character buffer to middle of screen
+  u8g2.drawStr(u8g2.getDisplayWidth() / 2 - u8g2.getStrWidth(event_str) / 2, u8g2.getDisplayHeight() / 2, event_str);
+
+  if (average > 6) {  //if average is above 6 set the enumerated state to WAVE_ON
+    state = WAVE_ON;
+  }
+  else{
+    state = WAVE_OFF;
+  }
+
+}
+ 
+int barHeight(double mag) {             
+  float fy; 
+  int y; 
+  fy = 14.0 * (log10(mag) + 1.5); // get the magnitude of the current frequency bin in dB      
+  y = fy;
+  y = constrain(y, 0, 56); // constrain the magnitude of the current frequency bin to the range 0 to 56
+  if(state == WAVE_OFF){ //Essentially a filter to reduce the amount of noise in the spectrum data
+    if(y <= 20 && y >= 10) { // if the magnitude of the current frequency bin is between -20 and -15 dB
+    y = y / 2;
+    }
+    else if(y <= 10 && y >= 5) { // if the magnitude of the current frequency bin is between -10 and -5 dB
+      y = y / 1.75;
+    }
+    else if(y <= 5 && y >= 0) { // if the magnitude of the current frequency bin is between -5 and 0 dB
+     y = 0;
+    }
+  }  
+  return y;
+}
