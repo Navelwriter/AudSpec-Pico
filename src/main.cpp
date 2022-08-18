@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <adc.h>
 #include <Bounce2.h>
+#include <multicore.h>
 #include "arduinoFFT.h"
 
 #define Button1 17
@@ -47,30 +48,6 @@ int map(int s, int a1, int a2, int b1, int b2) { // map a value from one range t
   return b1 + (s - a1) * (b2 - b1) / (a2 - a1);
 }
 
-void setup() {
-  u8g2.begin();
-  adc_init();
-  //initialize the second adc channel
-  // adc_gpio_init(ADC2_GPIO);
-  // adc_select_input(2); // select ADC input 2
-  analogReadResolution(12); // set the ADC resolution to 12 bit
-
-  pinMode(LED_BUILTIN, OUTPUT); // set Built_in_LED as output
-  digitalWrite(LED_BUILTIN, !ledState); // set Built_in_LED to LOW
-
-  pinMode(Button1, INPUT_PULLUP); // set Button1 as input with pullup
-  b.attach(Button1); // attach Button1 to the Bounce object
-  b.interval(10); // set the bounce interval to 10ms
-  Serial.begin(9600); 
-  
-  u8g2.setFont(u8g2_font_6x10_mf);
-  u8g2.setDrawColor(1);
-  u8g2.setFontPosTop();       
-  u8g2.clearBuffer();
-  u8g2.drawStr( 0, 0, "Start AudSpec");
-  u8g2.sendBuffer();
-  delay(500);
-}
 
 // create a u8g2 rectangle class with functions to draw and fill it
 class u8g2_rect_t {
@@ -99,6 +76,30 @@ private:
   int w;
   int h;
 };
+
+void setup() {
+  u8g2.begin();
+  adc_init();
+  //initialize the second adc channel
+  // adc_gpio_init(ADC2_GPIO);
+  // adc_select_input(2); // select ADC input 2
+  analogReadResolution(12); // set the ADC resolution to 12 bit
+
+  pinMode(LED_BUILTIN, OUTPUT); // set Built_in_LED as output
+  digitalWrite(LED_BUILTIN, !ledState); // set Built_in_LED to LOW
+
+
+  Serial.begin(9600); 
+  
+  u8g2.setFont(u8g2_font_6x10_mf);
+  u8g2.setDrawColor(1);
+  u8g2.setFontPosTop();       
+  u8g2.clearBuffer();
+  u8g2.drawStr( 0, 0, "Start AudSpec");
+  u8g2.sendBuffer();
+  delay(500);
+
+}
 
 void loop() {
   u8g2.clearBuffer();
@@ -140,7 +141,17 @@ void loop() {
   showSpect();
   u8g2.sendBuffer();
 
-  b.update(); // update the Button object
+ 
+}
+
+void setup1(){ 
+  pinMode(Button1, INPUT_PULLUP); // set Button1 as input with pullup
+  b.attach(Button1); // attach Button1 to the Bounce object
+  b.interval(10); // set the bounce interval to 10ms
+}
+
+void loop1(){
+ b.update(); // update the Button object
   Serial.println(b.read());
   if(b.fell()){ // if the button was pressed
     ledState = !ledState;
@@ -218,3 +229,5 @@ int barHeight(double mag) {
   }  
   return y;
 }
+
+
