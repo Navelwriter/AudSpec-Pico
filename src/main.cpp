@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <Wire.h>
-#include <adc.h>
 #include <Bounce2.h>
 #include <multicore.h>
 #include "arduinoFFT.h"
@@ -79,7 +78,6 @@ private:
 
 void setup() {
   u8g2.begin();
-  adc_init();
   //initialize the second adc channel
   // adc_gpio_init(ADC2_GPIO);
   // adc_select_input(2); // select ADC input 2
@@ -104,18 +102,13 @@ void setup() {
 void loop() {
   u8g2.clearBuffer();
 
-  uint16_t result = analogRead(ADC2_GPIO); //read the potentiometer adc value in the ADC2
-  val = map(result, 0, 0xfff, 0, 20); // map it between 0 and 15
-  if (val != mem) {
-    mem = val;
-  }
-
   for (int i = 0; i < samples; i++) { 
     wave_R[i] = analogRead(R_IN); // read the waveform data from the ADC
     wave_L[i] = analogRead(L_IN);
     delayMicroseconds(21); // delay for 21 microseconds to get the next sample
   }       
 
+  
   for (int i = 0; i < samples; i++) { // perform the FFT on the waveform data
     vReal_R[i] = (wave_R[i] - 2048) * 3.3 / 4096.0; // convert the waveform data to a voltage
     vReal_L[i] = (wave_L[i] - 2048) * 3.3 / 4096.0;
@@ -132,16 +125,10 @@ void loop() {
   FFT.ComplexToMagnitude(vReal_R, vImag_R, samples); // compute the magnitude of the FFT output
   FFT.ComplexToMagnitude(vReal_L, vImag_L, samples);
 
-  // u8g2_rect_t rect(u8g2.getDisplayWidth() - u8g2.getDisplayWidth() / 10, 0, u8g2.getDisplayWidth() / 12, u8g2.getDisplayHeight() / 5); // create a new narrow rectangle on the top right
-  // rect.move(0, val * 2.5); // move the rectangle using the potentiometer
-  // rect.fill(&u8g2);
-  // rect.draw(&u8g2);
-
   showWave();
   showSpect();
   u8g2.sendBuffer();
 
- 
 }
 
 void setup1(){ 
@@ -151,13 +138,20 @@ void setup1(){
 }
 
 void loop1(){
- b.update(); // update the Button object
+  b.update(); // update the Button object
   Serial.println(b.read());
   if(b.fell()){ // if the button was pressed
     ledState = !ledState;
     digitalWrite(LED_BUILTIN, ledState); // set Built_in_LED to the opposite state
   }
+  uint16_t result = analogRead(ADC2_GPIO); //read the potentiometer adc value in the ADC2
+  val = map(result, 0, 0xfff, 0, 20); // map it between 0 and 15
+  if (val != mem) {
+    mem = val;
+  } 
+
 }
+
 
 void showWave() { // draw the waveform data on the screen
   for (int i = 0; i < 52; i++) {
