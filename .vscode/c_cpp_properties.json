@@ -10,6 +10,7 @@
             "includePath": [
                 "E:/Platform/AudSpec-Pico/include",
                 "E:/Platform/AudSpec-Pico/src",
+                "E:/Platform/AudSpec-Pico/.pio/libdeps/pico/RingBuffer/src",
                 "E:/Platform/AudSpec-Pico/.pio/libdeps/pico/arduinoFFT/src",
                 "E:/Platform/AudSpec-Pico/.pio/libdeps/pico/Bounce2/src",
                 "E:/Platform/AudSpec-Pico/.pio/libdeps/pico/U8g2/src",
@@ -61,6 +62,7 @@
                 "path": [
                     "E:/Platform/AudSpec-Pico/include",
                     "E:/Platform/AudSpec-Pico/src",
+                    "E:/Platform/AudSpec-Pico/.pio/libdeps/pico/RingBuffer/src",
                     "E:/Platform/AudSpec-Pico/.pio/libdeps/pico/arduinoFFT/src",
                     "E:/Platform/AudSpec-Pico/.pio/libdeps/pico/Bounce2/src",
                     "E:/Platform/AudSpec-Pico/.pio/libdeps/pico/U8g2/src",
