@@ -85,10 +85,10 @@ void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT); // set Built_in_LED as output
   digitalWrite(LED_BUILTIN, !ledState); // set Built_in_LED to LOW
-
-
+  pinMode(Button1, INPUT_PULLUP); // set Button1 as input with pullup
+  b.attach(Button1); // attach Button1 to the Bounce object
+  b.interval(10); // set the bounce interval to 10ms
   Serial.begin(9600); 
-  
   u8g2.setFont(u8g2_font_6x10_mf);
   u8g2.setDrawColor(1);
   u8g2.setFontPosTop();       
@@ -101,7 +101,27 @@ void setup() {
 
 void loop() {
   u8g2.clearBuffer();
+  b.update(); // update the Button object
+  Serial.println(b.read());
+  if(b.fell()){ // if the button was pressed
+    ledState = !ledState;
+    digitalWrite(LED_BUILTIN, ledState); // set Built_in_LED to the opposite state
+  }
+  uint16_t result = analogRead(ADC2_GPIO); //read the potentiometer adc value in the ADC2
+  val = map(result, 0, 0xfff, 0, 20); // map it between 0 and 15
+  if (val != mem) {
+    mem = val;
+  } 
+  showWave();
+  showSpect();
+  u8g2.sendBuffer();
 
+}
+
+void setup1(){ 
+}
+
+void loop1(){
   for (int i = 0; i < samples; i++) { 
     wave_R[i] = analogRead(R_IN); // read the waveform data from the ADC
     wave_L[i] = analogRead(L_IN);
@@ -124,31 +144,6 @@ void loop() {
  
   FFT.ComplexToMagnitude(vReal_R, vImag_R, samples); // compute the magnitude of the FFT output
   FFT.ComplexToMagnitude(vReal_L, vImag_L, samples);
-
-  showWave();
-  showSpect();
-  u8g2.sendBuffer();
-
-}
-
-void setup1(){ 
-  pinMode(Button1, INPUT_PULLUP); // set Button1 as input with pullup
-  b.attach(Button1); // attach Button1 to the Bounce object
-  b.interval(10); // set the bounce interval to 10ms
-}
-
-void loop1(){
-  b.update(); // update the Button object
-  Serial.println(b.read());
-  if(b.fell()){ // if the button was pressed
-    ledState = !ledState;
-    digitalWrite(LED_BUILTIN, ledState); // set Built_in_LED to the opposite state
-  }
-  uint16_t result = analogRead(ADC2_GPIO); //read the potentiometer adc value in the ADC2
-  val = map(result, 0, 0xfff, 0, 20); // map it between 0 and 15
-  if (val != mem) {
-    mem = val;
-  } 
 
 }
 
